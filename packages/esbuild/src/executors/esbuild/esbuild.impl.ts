@@ -31,6 +31,9 @@ const BUILD_WATCH_SUCCEEDED = `[ ${chalk.green(
   'watch'
 )} ] build succeeded, watching for changes...`;
 
+const BUILD_WATCH_START = `[ ${chalk.green(
+  'build'
+)} ] started.`;
 // since the workspace has esbuild 0.17+ installed, there's no definition
 // of esbuild without 'context', therefore, the esbuild import in the else
 // branch below has type never, getting the type to cast later
@@ -123,7 +126,14 @@ export async function* esbuildExecutor(
                   ? {
                       name: 'nx-watch-plugin',
                       setup(build: esbuild.PluginBuild) {
+                        let startTime,endTime;
+                        build.onStart(async () => {
+                          startTime = performance.now();
+                          devkit_1.logger.info(BUILD_WATCH_START);
+                        });
                         build.onEnd(async (result: esbuild.BuildResult) => {
+                          endTime = performance.now();
+                          const duration = Math.round(endTime - startTime) / 1000;
                           if (!options.skipTypeCheck) {
                             const { errors } = await runTypeCheck(
                               options,
@@ -134,10 +144,11 @@ export async function* esbuildExecutor(
                           const success =
                             result.errors.length === 0 && !hasTypeErrors;
 
+                          const BUILD_DURATION = `Duration ${duration} second.`
                           if (!success) {
-                            logger.info(BUILD_WATCH_FAILED);
+                            logger.info(`${BUILD_WATCH_FAILED} : ${BUILD_DURATION}`);
                           } else {
-                            logger.info(BUILD_WATCH_SUCCEEDED);
+                            logger.info(`${BUILD_WATCH_SUCCEEDED} : ${BUILD_DURATION}`);
                           }
 
                           next({
